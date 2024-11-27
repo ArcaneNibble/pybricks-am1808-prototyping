@@ -1,0 +1,123 @@
+#******************************************************************************
+#
+# makedefs - used in all armv5/cgt makefiles
+#
+# Copyright (C) 2011 Texas Instruments Incorporated. - http://www.ti.com/ 
+# All rights reserved.
+#
+#******************************************************************************
+# Contents
+# 1. Common paths and options
+# 2. Settings for CGT + ARM9 makefiles
+#
+# Instructions
+# *  Items marked "edit!" must be modified to match your installation details.
+#******************************************************************************
+
+#
+# Compiler path - edit!
+#
+CGT_DIR="C:/ti/ccsv5/tools/compiler/tms470"
+
+#
+# Target and Compiler definitions (Device and EVM specified by makefile)
+#
+TARGET=armv5
+COMPILER=cgt
+
+#
+# Convert Windows native style filenames to POSIX style filenames
+#
+CYGPATH=cypath
+
+#
+# Target directories to be built
+#
+DRIVERS_BLD=${ROOT}/build/${TARGET}/${COMPILER}/${DEVICE}/drivers
+PLATFORM_BLD=${ROOT}/build/${TARGET}/${COMPILER}/${DEVICE}/${EVM}/platform
+SYSCONFIG_BLD=${ROOT}/build/${TARGET}/${COMPILER}/${DEVICE}/system_config
+IPCLIB_BLD=${ROOT}/build/${TARGET}/${COMPILER}/${DEVICE}/ipclite
+UTILITY_BLD=${ROOT}/build/${TARGET}/${COMPILER}/utils
+USBLIB_BLD=${ROOT}/build/${TARGET}/${COMPILER}/${DEVICE}/usblib
+GRLIB_BLD=${ROOT}/build/${TARGET}/${COMPILER}/grlib
+NANDLIB_BLD=${ROOT}/build/${TARGET}/${COMPILER}/nandlib
+
+#
+# Pre/recompiled library paths
+#
+DRIVERS_BIN=${ROOT}/binary/${TARGET}/${COMPILER}/${DEVICE}/drivers
+PLATFORM_BIN=${ROOT}/binary/${TARGET}/${COMPILER}/${DEVICE}/${EVM}/platform
+SYSCONFIG_BIN=${ROOT}/binary/${TARGET}/${COMPILER}/${DEVICE}/system_config
+IPCLIB_BIN=${ROOT}/binary/${TARGET}/${COMPILER}/${DEVICE}/ipclite
+UTILITY_BIN=${ROOT}/binary/${TARGET}/${COMPILER}/utils
+USBLIB_BIN=${ROOT}/binary/${TARGET}/${COMPILER}/${DEVICE}/usblib
+GRLIB_BIN=${ROOT}/binary/${TARGET}/${COMPILER}/grlib
+NANDLIB_BIN=${ROOT}/binary/${TARGET}/${COMPILER}/nandlib
+
+#
+# Source code paths
+#
+DRIVERS_SRC=${ROOT}/drivers
+PLATFORM_SRC=${ROOT}/platform/${EVM}
+SYSCONFIG_SRC=${ROOT}/system_config/${TARGET}
+IPCLIB_SRC=${ROOT}/ipclite/src
+UTILITY_SRC=${ROOT}/utils
+USBLIB_SRC=${ROOT}/usblib
+GRLIB_SRC=${ROOT}/grlib
+NANDLIB_SRC=${ROOT}/nandlib
+
+#
+# Include paths
+#
+IPATH=-i${ROOT}/include \
+      -i${ROOT}/include/hw \
+      -i${ROOT}/include/armv5 \
+      -i${ROOT}/include/armv5/${DEVICE} \
+      -i${ROOT}/grlib/include \
+      -i${ROOT}/usblib/include \
+      -i${ROOT}/ipclite/include \
+      -i${ROOT}/nandlib/include \
+      -i${CGT_DIR}/include
+
+#
+# Library paths
+#
+LPATH=-i${CGT_DIR}/lib \
+      -i${DRIVERS_BIN}/${TARGET_MODE} \
+      -i${PLATFORM_BIN}/${TARGET_MODE} \
+      -i${SYSCONFIG_BIN}/${TARGET_MODE} \
+      -i${IPCLIB_BIN}/${TARGET_MODE} \
+      -i${UTILITY_BIN}/${TARGET_MODE} \
+      -i${USBLIB_BIN}/${TARGET_MODE} \
+      -i${GRLIB_BIN}/${TARGET_MODE} \
+      -i${NANDLIB_BIN}/${TARGET_MODE}
+
+#
+# C compilation options
+#
+Debug_FLAG=-g
+Release_FLAG=-O2
+ifdef DEVICE
+DEVICE_D=-D${DEVICE}
+endif
+ifdef EVM
+EVM_D=-D${EVM}
+endif
+CFLAGS= -c ${${TARGET_MODE}_FLAG} -mv5e -me --diag_warning=225 --abi=eabi --code_state=32 --preproc_with_compile ${IPATH} ${DEVICE_D} ${EVM_D}
+
+#
+# Compiler, Linker and Archiver with respect to the toolchain
+#
+CC=${CGT_DIR}/bin/cl470
+LD=${CGT_DIR}/bin/cl470
+AR=${CGT_DIR}/bin/ar470
+
+#
+# Archiver options
+#
+ARFLAGS= r
+
+#
+# Linker options
+#
+LDFLAGS= -z -me -u Entry -x

@@ -1,0 +1,6 @@
+include/    - Include files for C6A811x ports.
+netif/      - Network interface drivers for C6A811x devices.
+perf.c      - C6A811x performance monitor driver file (not used).
+sys_arch.c  - C6A811x architecture support file.
+
+See also the FILES file in each subdirectory.

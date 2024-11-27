@@ -1,0 +1,4 @@
+arch/       - Include files for C6A811x architecture.
+netif/      - Include files for C6A811x network interfaces.
+
+See also the FILES file in each subdirectory.
