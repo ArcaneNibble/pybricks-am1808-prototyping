@@ -39,6 +39,7 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "interrupt.h"
 #include "hw_syscfg0_AM1808.h"
 #include "hw_syscfg1_AM1808.h"
 #include "hw_pllc_AM1808.h"
@@ -76,27 +77,6 @@ unsigned int DDR_Init ( unsigned int freq );
 static void CopyVectorTable(void);
 void BootAbort(void);
 int main(void);
-
-/******************************************************************************
-**                      INTERNAL VARIABLE DEFINITIONS
-*******************************************************************************/
-static unsigned int const vecTbl[14]=
-{
-    0xE59FF018,
-    0xE59FF018,
-    0xE59FF018,
-    0xE59FF018,
-    0xE59FF014,
-    0xE24FF008,
-    0xE59FF010,
-    0xE59FF010,
-    (unsigned int)Entry,
-    (unsigned int)UndefInstHandler,
-    (unsigned int)SWIHandler,
-    (unsigned int)AbortHandler,
-    (unsigned int)IRQHandler,
-    (unsigned int)FIQHandler
-};
 
 
 /******************************************************************************
@@ -137,16 +117,15 @@ unsigned int start_boot(void)
     while(1);
 }
 
-
+extern void ExceptionHandler(void);
 static void CopyVectorTable(void)
 {
     unsigned int *dest = (unsigned int *)0xFFFF0000;
-    unsigned int *src =  (unsigned int *)vecTbl;
-    unsigned int count;
+    unsigned int *addrExceptionHandler = (unsigned int *)ExceptionHandler;
+    int i = 1;
 
-    for(count = 0; count < sizeof(vecTbl)/sizeof(vecTbl[0]); count++)
-    {
-        dest[count] = src[count];
+    for (; i < 8 + 2048; ++i) {
+        dest[i] = addrExceptionHandler[i];
     }
 }
 

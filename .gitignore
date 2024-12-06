@@ -1,0 +1,15 @@
+# Compiled Sources
+###################
+*.o
+*.a
+*.P
+*.elf
+*.bin
+*.map
+*.hex
+*.dis
+*.exe
+bin/*
+
+
+.vscode/

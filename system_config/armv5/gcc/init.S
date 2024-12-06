@@ -7,23 +7,28 @@
 @
 @******************************************************************************
 
-@****************************** Global Symbols*********************************
+@ Code kombiniert aus init.S (TI/system_config/armv5/gcc) und ExceptionHandler.S (TI/system_config/armv5/am1808/gcc)
+@ SPDX-License-Identifier: MPL-1.0
+@ Copyright (c) 2016 Tobias Schießl
+
+#include "hw_aintc.h"
+#include "soc_AM1808.h"
+
         .global Entry
         .global _stack                  
         .global _bss_start
         .global _bss_end
-        .global start_boot
 
 @************************ Internal Definitions ********************************
 @
 @ Define the stack sizes for different modes. The user/system mode will use
 @ the rest of the total stack size
 @
-        .set  UND_STACK_SIZE, 0x8
-        .set  ABT_STACK_SIZE, 0x8
-        .set  FIQ_STACK_SIZE, 0x8
-        .set  IRQ_STACK_SIZE, 0x500
-        .set  SVC_STACK_SIZE, 0x8
+        .set  UND_STACK_SIZE, 0x50000
+        .set  ABT_STACK_SIZE, 0x50000
+        .set  FIQ_STACK_SIZE, 0xF0000
+        .set  IRQ_STACK_SIZE, 0xF0000
+        .set  SVC_STACK_SIZE, 0x50000
 
 @
 @ to set the mode bits in CPSR for different modes
@@ -55,6 +60,9 @@
 @ main() function. 
 @
 Entry:
+         MRC p15, 0, r0, c1, c0, 0 @ Load Coprocessor Register C1 to ARM Register r0
+         ORR r0, r0, #0x00002000 @ Logical OR --> Set Bit 13
+         MCR p15, 0, r0, c1, c0, 0 @ Restore Coprocessor Register C1 from ARM Register r0
 @
 @ Set up the Stack for Undefined mode
 @
@@ -108,12 +116,12 @@ Loop:
 @
 @ Enter the start_boot function. The execution still happens in system mode
 @
-@Enter_main:
+Enter_main:
          LDR   r10,=start_boot                 @ Get the address of start_boot
          MOV   lr,pc                           @ Dummy return 
-         BX    r10                             @ Branch to start_boot
-         SUB   pc, pc, #0x08                   @ looping   
-
+         BLX   r10                             @ Branch to start_boot
+         SUB   pc, pc, #0x08                   @ looping
+        
 @
 @ End of the file
 @

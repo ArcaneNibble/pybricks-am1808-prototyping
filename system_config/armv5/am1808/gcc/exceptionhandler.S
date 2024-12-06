@@ -6,6 +6,9 @@
 @ All rights reserved.
 @
 @******************************************************************************
+@ Code kombiniert aus init.S (TI/system_config/armv5/gcc) und ExceptionHandler.S (TI/system_config/armv5/am1808/gcc)
+@ SPDX-License-Identifier: MPL-1.0
+@ Copyright (c) 2016 Tobias Schießl
 @
 @ Share header file with assembly source code
 @
@@ -13,22 +16,47 @@
 #include "soc_AM1808.h"
 
 @************************** Global symbols ************************************
+        .global ExceptionHandler
         .global IRQHandler
-        .global FIQHandler
-        .global AbortHandler
         .global SWIHandler
-        .global UndefInstHandler
-        .global CPUAbortHandler
         
-        .equ ADDR_HIPVR1, SOC_AINTC_0_REGS + AINTC_HIPVR(0)
-        .equ ADDR_HIPVR2, SOC_AINTC_0_REGS + AINTC_HIPVR(1)
-        .equ MASK_SWI_NUM, 0xFF000000
+        .set  MODE_USR, 0x10            
+        .set  MODE_FIQ, 0x11
+        .set  MODE_IRQ, 0x12
+        .set  MODE_SVC, 0x13
+        .set  MODE_ABT, 0x17
+        .set  MODE_UND, 0x1B
+        .set  MODE_SYS, 0x1F            
   
-@**************************** Text Section ************************************
+
+        .equ I_F_BIT, 0xC0 
+        .equ MASK_SWI_NUM, 0xFF000000
+
         .text
 
-@ This source file is assembled for ARM instructions
         .code 32
+
+@ Default entry for all vectors except Reset is "B ExceptionHandler" so each interrupt would cause a reset
+@ Since I can only say that the IRQ Handler works, we leave the remaining ones as they are
+ExceptionHandler:
+        B Entry
+        B ExceptionHandler
+        B SWIHandler
+        B ExceptionHandler
+        B ExceptionHandler
+        B ExceptionHandler
+        B IRQHandler
+        NOP @ Fall to FIQHandler
+        
+FIQHandler:
+        STMFD    r13!, {r0-r7, lr}
+        LDR      r0, =0xFFFEF600
+        LDR      r0, [r0]
+        MOV      lr, pc
+        LDR      pc, [r0]
+        LDMFD    r13!, {r0-r7, lr}
+        SUBS     pc, lr, #0x4 
+        
 @******************************************************************************
 @*                  Function Definition of SWI Handler
 @******************************************************************************    
@@ -56,63 +84,32 @@ SWIHandler:
 @ pending IRQ. This handler doesnot support nesting.
 @
 IRQHandler:
-        STMFD    r13!, {r0-r3, r12, r14}  @ Save context in IRQ stack
-        LDR      r0, =ADDR_HIPVR2         @ R0 points to address of HIPVR2
-        LDR      r1, [r0]                 @ R1 contains address of ISR
-        ADD      r14, pc, #0              @ Save return address in LR 
-        LDR      pc, [r1]                 @ Go to ISR (still in IRQ mode)
-        LDMFD    r13!, {r0-r3, r12, r14}  @ Restore registers from IRQ stack
-        SUBS     pc, r14, #0x4            @ Return to program before IRQ
-        
-@******************************************************************************
-@*                  Function Definition of FIQ Handler
-@******************************************************************************    
-@
-@ The FIQ Handler jumps to the ISR of the highest priority pending FIQ. The
-@ address is taken from HIPVR1, which contains the ISR address of the highest
-@ pending FIQ. This handler doesnot support nesting
-@
-FIQHandler:
-@
-@ Save the required context in FIQ stack. 
-@
-        STMFD    r13!, {r0-r3, r12, r14}  @ Save context in FIQ stack
-        LDR      r0, =ADDR_HIPVR1         @ R0 points to address of HIPVR1
-        LDR      r1, [r0]                 @ R1 contains address of ISR
-        ADD      r14, pc, #0              @ Save return address in LR 
-        LDR      pc, [r1]                 @ Go to ISR (still in FIQ mode)
-        LDMFD    r13!, {r0-r3, r12, r14}  @ Restore registers from FIQ stack
-        SUBS     pc, r14, #0x4            @ Return to program state before FIQ 
-        
-@******************************************************************************
-@*             Function Definition of Abort/Undef Handler
-@******************************************************************************    
-@
-@ The Abort handler goes to the C handler of abort mode. Note that the undefined
-@ instruction is not handled separately.
-@ if nothing is done in the abort mode, the execution enters infinite loop.
-@
-AbortHandler:
-UndefInstHandler:
-@
-@ Disable all the interrupts
-@
-        MRS     r0, cpsr                  @ Read from CPSR
-        ORR     r0, r0, #0xC0             @ Clear the IRQ and FIQ bits    
-        MSR     cpsr, r0                  @ Write to CPSR
-        ADD     r14, pc, #0               @ Store the return address
-        LDR     pc, =CPUAbortHandler      @ Go to C handler
-@
-@ Go to infinite loop if returned from C handler
-@
-loop0:
-        B       loop0                      
+        SUB      lr, lr, #0x4                   @ remove offset caused by Interrupt from return adress.
+        STMFD    r13!, {r0-r12}                 @ Save context in IRQ stack
+        STMFD    r13!, {lr}                     @Save lr in IRQ stack
+        MRS      r0, spsr                       @Save spsr
+        STMFD    r13!, {r0}
 
+        LDR      r0, =0xFFFEF604                @ AINTC HIPVR2 Register
+        LDR      r0, [r0]                       @ Get Entry of ISR-Vector-Table
+        PUSH     {r0}                           @ Save r0 (required after ISR)
+        MOV      lr, pc                         @ Save return address in LR 
+        LDR      pc, [r0]                       @ Jump to ISR
+        POP      {r0}                           @ 
+        
+LeaveIRQ:
+        LDMFD    r13!, {r0}                     @restore spsr
+        MSRNE    spsr_cxsf, r0
+        LDMFD    r13!, {lr}                     @ Restore lr from IRQ stack
+        LDMFD    r13!, {r0-r12}                 @ Restore registers from IRQ stack
+        
+        MOVS     pc, lr                         @ Return to program before IRQ
+
+loop:
+        B loop
+        
 @*****************************************************************************
 @
 @ End of the file
 @
     .end
-    
-    
-    
