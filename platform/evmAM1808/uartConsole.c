@@ -55,8 +55,8 @@
 /******************************************************************************
 **              INTERNAL MACRO DEFINITIONS
 ******************************************************************************/
-#define UART_STDIO_INSTANCE             (2)
-#define UART_CONSOLE_BASE               (SOC_UART_2_REGS)
+#define UART_STDIO_INSTANCE             (1)
+#define UART_CONSOLE_BASE               (SOC_UART_1_REGS)
 
 /******************************************************************************
 **              INTERNAL FUNCTION PROTOTYPES
