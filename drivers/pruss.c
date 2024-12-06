@@ -42,7 +42,6 @@
 
 #include "hw/hw_types.h"
 #include "pruss.h"
-#include "armv7a/am335x/interrupt.h"
 
 /*****************************************************************************/
 /*                      INTERNAL MACRO DEFINITIONS                           */
