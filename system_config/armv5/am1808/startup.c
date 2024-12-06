@@ -39,6 +39,7 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "gpio.h"
 #include "interrupt.h"
 #include "hw_syscfg0_AM1808.h"
 #include "hw_syscfg1_AM1808.h"
@@ -83,6 +84,35 @@ int main(void);
 **                          FUNCTION DEFINITIONS
 *******************************************************************************/
 
+static void set_gpio_mux(unsigned int id, unsigned int mask, unsigned int shift, unsigned int value) {
+    // Generalized from GPIOBank4Pin0PinMuxSetup in TI evmAM1808 platform example.
+    unsigned int mux = value << shift;
+    unsigned int keep = HWREG(SOC_SYSCFG_0_REGS + SYSCFG0_PINMUX(id)) & ~(mask);
+    HWREG(SOC_SYSCFG_0_REGS + SYSCFG0_PINMUX(id)) = (mux | keep);
+}
+
+static unsigned int get_pin_index(unsigned int bank, unsigned int pin) {
+    return bank * 0x10 + pin + 1;
+}
+
+static void power_off(void) {
+    unsigned int pin_index = get_pin_index(6, 11);
+    GPIODirModeSet(SOC_GPIO_0_REGS, pin_index, GPIO_DIR_OUTPUT);
+    GPIOPinWrite(SOC_GPIO_0_REGS, pin_index, 0);
+}
+
+unsigned int gpio_get_value(unsigned int bank, unsigned int pin) {
+    unsigned int pin_index = get_pin_index(bank, pin);
+    GPIODirModeSet(SOC_GPIO_0_REGS, pin_index, GPIO_DIR_INPUT);
+    return GPIOPinRead(SOC_GPIO_0_REGS, pin_index) == GPIO_PIN_HIGH;
+}
+
+void power_off_on_back_press(void) {
+    if (gpio_get_value(6, 10)) {
+        power_off();
+    }
+}
+
 /**
  * \brief   Boot strap function which enables the PLL(s) and PSC(s) for basic
  *          module(s)
@@ -110,6 +140,14 @@ unsigned int start_boot(void)
     PSCModuleControl(SOC_PSC_0_REGS, HW_PSC_AINTC, 0, PSC_MDCTL_NEXT_ENABLE);
     /* Initialize the vector table with opcodes */
     CopyVectorTable();
+
+    PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_GPIO, PSC_POWERDOMAIN_ALWAYS_ON, PSC_MDCTL_NEXT_ENABLE);
+
+    // Back button GPIO
+    set_gpio_mux(13, SYSCFG_PINMUX13_PINMUX13_23_20, SYSCFG_PINMUX13_PINMUX13_23_20_SHIFT, SYSCFG_PINMUX13_PINMUX13_23_20_GPIO6_10);
+
+    // Poweroff pin.
+    set_gpio_mux(13, SYSCFG_PINMUX13_PINMUX13_19_16, SYSCFG_PINMUX13_PINMUX13_19_16_SHIFT, SYSCFG_PINMUX13_PINMUX13_19_16_GPIO6_11);
 
    /* Calling the main */
     main();
