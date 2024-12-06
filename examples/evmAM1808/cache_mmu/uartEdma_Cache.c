@@ -57,7 +57,7 @@
 /****************************************************************************/
 /*                      INTERNAL MACRO DEFINITIONS                          */
 /****************************************************************************/
-#define UART_RBR_THR_REG           ((0x01D0D000u) + (0u))
+#define UART_RBR_THR_REG           (SOC_UART_1_REGS)
 
 #define MAX_ACNT                   1
 #define MAX_CCNT                   1
@@ -165,27 +165,27 @@ int main(void)
 
     /* Request DMA Channel and TCC for UART Transmit*/
     EDMA3RequestChannel(SOC_EDMA30CC_0_REGS, EDMA3_CHANNEL_TYPE_DMA, 
-                        EDMA3_CHA_UART2_TX, EDMA3_CHA_UART2_TX,
+                        EDMA3_CHA_UART1_TX, EDMA3_CHA_UART1_TX,
                         EVT_QUEUE_NUM);
 
     /* Registering Callback Function for TX*/
-    cb_Fxn[EDMA3_CHA_UART2_TX] = &callback; 
+    cb_Fxn[EDMA3_CHA_UART1_TX] = &callback; 
 
     /* Request DMA Channel and TCC for UART Receive */
     EDMA3RequestChannel(SOC_EDMA30CC_0_REGS, EDMA3_CHANNEL_TYPE_DMA,
-                        EDMA3_CHA_UART2_RX, EDMA3_CHA_UART2_RX,
+                        EDMA3_CHA_UART1_RX, EDMA3_CHA_UART1_RX,
                         EVT_QUEUE_NUM);
 
     /* Registering Callback Function for RX*/
-    cb_Fxn[EDMA3_CHA_UART2_RX] = &callback; 
+    cb_Fxn[EDMA3_CHA_UART1_RX] = &callback; 
 
 
     /* Transmit Data for Enter Message */
-    UartTransmitData(EDMA3_CHA_UART2_TX, EDMA3_CHA_UART2_TX,
+    UartTransmitData(EDMA3_CHA_UART1_TX, EDMA3_CHA_UART1_TX,
                      buffer, TX_BUFFER_SIZE);
 
     /* Enabling UART in DMA Mode*/
-    UARTDMAEnable(SOC_UART_2_REGS, UART_RX_TRIG_LEVEL_1 |  \
+    UARTDMAEnable(SOC_UART_1_REGS, UART_RX_TRIG_LEVEL_1 |  \
                                    UART_DMAMODE |          \
                                    UART_FIFO_MODE );
     /* Wait for return from callback */     
@@ -214,11 +214,11 @@ int main(void)
     #endif
     
     /* Transmit Data for Entered value */
-    UartTransmitData(EDMA3_CHA_UART2_TX, EDMA3_CHA_UART2_TX, 
+    UartTransmitData(EDMA3_CHA_UART1_TX, EDMA3_CHA_UART1_TX, 
                      buffer, TX_BUFFER_SIZE);
 
     /* Enabling UART in DMA Mode*/
-    UARTDMAEnable(SOC_UART_2_REGS, UART_RX_TRIG_LEVEL_1 |  \
+    UARTDMAEnable(SOC_UART_1_REGS, UART_RX_TRIG_LEVEL_1 |  \
                                    UART_DMAMODE |           \
                                    UART_FIFO_MODE );
     /* Wait for return from callback */     
@@ -227,12 +227,12 @@ int main(void)
 
     /* Free EDMA3 Channels for TX and RX */
     EDMA3FreeChannel(SOC_EDMA30CC_0_REGS, EDMA3_CHANNEL_TYPE_DMA,
-                     EDMA3_CHA_UART2_TX, EDMA3_TRIG_MODE_EVENT, 
-                     EDMA3_CHA_UART2_TX, EVT_QUEUE_NUM);
+                     EDMA3_CHA_UART1_TX, EDMA3_TRIG_MODE_EVENT, 
+                     EDMA3_CHA_UART1_TX, EVT_QUEUE_NUM);
 
     EDMA3FreeChannel(SOC_EDMA30CC_0_REGS, EDMA3_CHANNEL_TYPE_DMA,
-                     EDMA3_CHA_UART2_RX, EDMA3_TRIG_MODE_EVENT, 
-                     EDMA3_CHA_UART2_RX, EVT_QUEUE_NUM);
+                     EDMA3_CHA_UART1_RX, EDMA3_TRIG_MODE_EVENT, 
+                     EDMA3_CHA_UART1_RX, EVT_QUEUE_NUM);
     
     while(1);
 }
@@ -469,7 +469,7 @@ static void ConfigureAINTCIntEDMA3(void)
 */
 static void callback(unsigned int tccNum, unsigned int status)
 {
-    UARTDMADisable(SOC_UART_2_REGS, (UART_RX_TRIG_LEVEL_1 | UART_FIFO_MODE));
+    UARTDMADisable(SOC_UART_1_REGS, (UART_RX_TRIG_LEVEL_1 | UART_FIFO_MODE));
     flag = 1;
 }
 

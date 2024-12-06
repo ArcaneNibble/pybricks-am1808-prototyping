@@ -99,6 +99,7 @@ TI_AM1808_SRC_C = $(addprefix ,\
 	system_config/armv5/am1808/interrupt.c \
 	system_config/armv5/am1808/startup.c \
 	utils/uartStdio.c \
+	utils/string0.c \
 	)
 
 EV3_SRC_S = $(addprefix system_config/,\
@@ -110,6 +111,7 @@ EVM_PLATFORM_SRC_C = $(addprefix ,\
 	platform/evmAM1808/syscfg.c \
 	platform/evmAM1808/uart.c \
 	platform/evmAM1808/uartConsole.c \
+	platform/evmAM1808/edma.c \
 	)
 
 TI_AM1808_PRJ_C = $(addprefix ,\
