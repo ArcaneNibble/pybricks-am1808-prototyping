@@ -68,29 +68,29 @@ int main(void)
     unsigned int intFlags = 0;
     unsigned int config = 0;
 
-    /* Enabling the PSC for UART2.*/
-    PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_UART2, PSC_POWERDOMAIN_ALWAYS_ON,
+    /* Enabling the PSC for UART1.*/
+    PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_UART1, PSC_POWERDOMAIN_ALWAYS_ON,
 		     PSC_MDCTL_NEXT_ENABLE);
 
     /* Setup PINMUX */
-    UARTPinMuxSetup(2, FALSE);
+    UARTPinMuxSetup(1, FALSE);
     
     /* Enabling the transmitter and receiver*/
-    UARTEnable(SOC_UART_2_REGS);
+    UARTEnable(SOC_UART_1_REGS);
 
     /* 1 stopbit, 8-bit character, no parity */
     config = UART_WORDL_8BITS;
 
     /* Configuring the UART parameters*/
-    UARTConfigSetExpClk(SOC_UART_2_REGS, SOC_UART_2_MODULE_FREQ,
+    UARTConfigSetExpClk(SOC_UART_1_REGS, SOC_UART_1_MODULE_FREQ,
                         BAUD_115200, config,
                         UART_OVER_SAMP_RATE_16);
 
     /* Enabling the FIFO and flushing the Tx and Rx FIFOs.*/
-    UARTFIFOEnable(SOC_UART_2_REGS);
+    UARTFIFOEnable(SOC_UART_1_REGS);
 
     /* Setting the UART Receiver Trigger Level*/
-    UARTFIFOLevelSet(SOC_UART_2_REGS, UART_RX_TRIG_LEVEL_1);
+    UARTFIFOLevelSet(SOC_UART_1_REGS, UART_RX_TRIG_LEVEL_1);
     
     /*
     ** Enable AINTC to handle interrupts. Also enable IRQ interrupt in ARM 
@@ -107,7 +107,7 @@ int main(void)
                  UART_INT_RXDATA_CTI);
 
     /* Enable the Interrupts in UART.*/
-    UARTIntEnable(SOC_UART_2_REGS, intFlags);
+    UARTIntEnable(SOC_UART_1_REGS, intFlags);
 
     while(1);
 
@@ -128,11 +128,11 @@ static void UARTIsr()
     unsigned char rxData = 0;
     unsigned int int_id = 0;
 
-    /* This determines the cause of UART2 interrupt.*/
-    int_id = UARTIntStatus(SOC_UART_2_REGS);
+    /* This determines the cause of UART1 interrupt.*/
+    int_id = UARTIntStatus(SOC_UART_1_REGS);
 
-    /* Clears the system interupt status of UART2 in AINTC. */
-    IntSystemStatusClear(SYS_INT_UARTINT2);
+    /* Clears the system interupt status of UART1 in AINTC. */
+    IntSystemStatusClear(SYS_INT_UARTINT1);
   
     /* Checked if the cause is transmitter empty condition.*/
     if(UART_INTID_TX_EMPTY == int_id)
@@ -140,32 +140,32 @@ static void UARTIsr()
         if(0 < length)
         {
             /* Write a byte into the THR if THR is free. */
-            UARTCharPutNonBlocking(SOC_UART_2_REGS, txArray[count]);
+            UARTCharPutNonBlocking(SOC_UART_1_REGS, txArray[count]);
             length--;
             count++;
         }
         if(0 == length)
         {
             /* Disable the Transmitter interrupt in UART.*/
-            UARTIntDisable(SOC_UART_2_REGS, UART_INT_TX_EMPTY);
+            UARTIntDisable(SOC_UART_1_REGS, UART_INT_TX_EMPTY);
         }
      }
 
     /* Check if the cause is receiver data condition.*/
     if(UART_INTID_RX_DATA == int_id)
     {
-        rxData = UARTCharGetNonBlocking(SOC_UART_2_REGS);
-        UARTCharPutNonBlocking(SOC_UART_2_REGS, rxData);
+        rxData = UARTCharGetNonBlocking(SOC_UART_1_REGS);
+        UARTCharPutNonBlocking(SOC_UART_1_REGS, rxData);
     }
 
 
     /* Check if the cause is receiver line error condition.*/
     if(UART_INTID_RX_LINE_STAT == int_id)
     {
-        while(UARTRxErrorGet(SOC_UART_2_REGS))
+        while(UARTRxErrorGet(SOC_UART_1_REGS))
         {
             /* Read a byte from the RBR if RBR has data.*/
-            UARTCharGetNonBlocking(SOC_UART_2_REGS);
+            UARTCharGetNonBlocking(SOC_UART_1_REGS);
         }
     }
 
@@ -201,12 +201,12 @@ static void SetupAINTCInt(void)
 static void ConfigureAINTCIntUART(void)
 {
     /* Registers the UARTIsr in the Interrupt Vector Table of AINTC. */
-    IntRegister(SYS_INT_UARTINT2, UARTIsr);
+    IntRegister(SYS_INT_UARTINT1, UARTIsr);
 
-    /* Map the channel number 2 of AINTC to UART2 system interrupt. */
-    IntChannelSet(SYS_INT_UARTINT2, 2);
+    /* Map the channel number 2 of AINTC to UART1 system interrupt. */
+    IntChannelSet(SYS_INT_UARTINT1, 2);
 
-    IntSystemEnable(SYS_INT_UARTINT2);
+    IntSystemEnable(SYS_INT_UARTINT1);
 }
 
 /****************************END OF FILE*************************************/
