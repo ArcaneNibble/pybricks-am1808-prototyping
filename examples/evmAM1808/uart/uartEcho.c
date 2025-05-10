@@ -109,6 +109,9 @@ int main(void)
     /* Enable the Interrupts in UART.*/
     UARTIntEnable(SOC_UART_1_REGS, intFlags);
 
+    // Need one write to get everything going for some reason.
+    UARTCharPut(SOC_UART_1_REGS, '?');
+
     while(1);
 
 }

@@ -150,18 +150,10 @@ $(BUILD)/%.o: %.S
 	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
 
 # firmware blob without checksum
-$(BUILD)/firmware-obj.bin: $(BUILD)/firmware.elf
+$(BUILD)/firmware-base.bin: $(BUILD)/firmware.elf
 	$(ECHO) "BIN creating firmware base file"
 	$(Q)$(OBJCOPY) -O binary $(FW_SECTIONS) $^ $@
 	$(ECHO) "`wc -c < $@` bytes"
-
-UBOOT_FILE = $(PBTOP)/bricks/ev3/u-boot.bin
-MAKE_BOOTABLE_IMAGE = $(PBTOP)/bricks/ev3/make_bootable_image.py
-
-# For EV3, merge firmware blob with u-boot to create a bootable image.
-$(BUILD)/firmware-base.bin: $(BUILD)/uImage
-	python $(MAKE_BOOTABLE_IMAGE) $(UBOOT_FILE) $(BUILD)/uImage $(BUILD)/firmware-base.bin
-
 
 FW_VERSION = 1.0.0
 
@@ -178,10 +170,6 @@ ZIP_FILES := \
 $(BUILD)/firmware.zip: $(ZIP_FILES)
 	$(ECHO) "ZIP creating firmware package"
 	$(Q)$(ZIP) -j $@ $^
-
-# firmware in uImage format (for EV3)
-$(BUILD)/uImage: $(BUILD)/firmware-obj.bin
-	mkimage -C none -A arm -T kernel -O linux -a 0xC0008000 -e 0xC0008000 -d $< $@
 
 deploy: $(BUILD)/firmware.zip
 	$(Q)$(PYBRICKSDEV) flash $<

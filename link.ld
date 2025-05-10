@@ -6,8 +6,8 @@ ENTRY(Entry)
 MEMORY
 {
     SRAM       (rwx) : ORIGIN = 0x80000000, LENGTH = 128K
-    DDR_unused (rwx) : ORIGIN = 0xC0000000, LENGTH = 0x8000
-    DDR        (rwx) : ORIGIN = 0xC0008000, LENGTH = (64M - 0x8000)
+    DDR_unused (rwx) : ORIGIN = 0xC0000000, LENGTH = 0x01080000
+    DDR        (rwx) : ORIGIN = 0xC1080000, LENGTH = (64M - 0x01080000)
 }
 
 _stack = ORIGIN(DDR) + LENGTH(DDR) - 4;

@@ -79,6 +79,27 @@ static void CopyVectorTable(void);
 void BootAbort(void);
 int main(void);
 
+/******************************************************************************
+**                      INTERNAL VARIABLE DEFINITIONS
+*******************************************************************************/
+static unsigned int const vecTbl[14]=
+{
+    0xE59FF018,
+    0xE59FF018,
+    0xE59FF018,
+    0xE59FF018,
+    0xE59FF014,
+    0xE24FF008,
+    0xE59FF010,
+    0xE59FF010,
+    (unsigned int)Entry,
+    (unsigned int)UndefInstHandler,
+    (unsigned int)SWIHandler,
+    (unsigned int)AbortHandler,
+    (unsigned int)IRQHandler,
+    (unsigned int)FIQHandler
+};
+
 
 /******************************************************************************
 **                          FUNCTION DEFINITIONS
@@ -95,7 +116,7 @@ static unsigned int get_pin_index(unsigned int bank, unsigned int pin) {
     return bank * 0x10 + pin + 1;
 }
 
-static void power_off(void) {
+void power_off(void) {
     unsigned int pin_index = get_pin_index(6, 11);
     GPIODirModeSet(SOC_GPIO_0_REGS, pin_index, GPIO_DIR_OUTPUT);
     GPIOPinWrite(SOC_GPIO_0_REGS, pin_index, 0);
@@ -155,15 +176,15 @@ unsigned int start_boot(void)
     while(1);
 }
 
-extern void ExceptionHandler(void);
 static void CopyVectorTable(void)
 {
     unsigned int *dest = (unsigned int *)0xFFFF0000;
-    unsigned int *addrExceptionHandler = (unsigned int *)ExceptionHandler;
-    int i = 1;
+    unsigned int *src =  (unsigned int *)vecTbl;
+    unsigned int count;
 
-    for (; i < 8 + 2048; ++i) {
-        dest[i] = addrExceptionHandler[i];
+    for(count = 0; count < sizeof(vecTbl)/sizeof(vecTbl[0]); count++)
+    {
+        dest[count] = src[count];
     }
 }
 

@@ -7,28 +7,23 @@
 @
 @******************************************************************************
 
-@ Code kombiniert aus init.S (TI/system_config/armv5/gcc) und ExceptionHandler.S (TI/system_config/armv5/am1808/gcc)
-@ SPDX-License-Identifier: MPL-1.0
-@ Copyright (c) 2016 Tobias Schießl
-
-#include "hw_aintc.h"
-#include "soc_AM1808.h"
-
+@****************************** Global Symbols*********************************
         .global Entry
         .global _stack                  
         .global _bss_start
         .global _bss_end
+        .global start_boot
 
 @************************ Internal Definitions ********************************
 @
 @ Define the stack sizes for different modes. The user/system mode will use
 @ the rest of the total stack size
 @
-        .set  UND_STACK_SIZE, 0x50000
-        .set  ABT_STACK_SIZE, 0x50000
-        .set  FIQ_STACK_SIZE, 0xF0000
-        .set  IRQ_STACK_SIZE, 0xF0000
-        .set  SVC_STACK_SIZE, 0x50000
+        .set  UND_STACK_SIZE, 0x8
+        .set  ABT_STACK_SIZE, 0x8
+        .set  FIQ_STACK_SIZE, 0x8
+        .set  IRQ_STACK_SIZE, 0x500
+        .set  SVC_STACK_SIZE, 0x8
 
 @
 @ to set the mode bits in CPSR for different modes
@@ -116,12 +111,12 @@ Loop:
 @
 @ Enter the start_boot function. The execution still happens in system mode
 @
-Enter_main:
+@Enter_main:
          LDR   r10,=start_boot                 @ Get the address of start_boot
          MOV   lr,pc                           @ Dummy return 
-         BLX   r10                             @ Branch to start_boot
-         SUB   pc, pc, #0x08                   @ looping
-        
+         BX    r10                             @ Branch to start_boot
+         SUB   pc, pc, #0x08                   @ looping   
+
 @
 @ End of the file
 @
