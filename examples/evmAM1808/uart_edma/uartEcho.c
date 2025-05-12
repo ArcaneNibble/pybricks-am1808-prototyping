@@ -187,7 +187,7 @@ int main(void)
 static void UartTransmitData(unsigned int tccNum, unsigned int chNum,
                              volatile char *buffer, unsigned int buffLength)
 {
-    EDMA3CCPaRAMEntry paramSet;
+    volatile EDMA3CCPaRAMEntry paramSet;
 
     /* Fill the PaRAM Set with transfer specific information */
     paramSet.srcAddr = (unsigned int) buffer;
@@ -213,7 +213,7 @@ static void UartTransmitData(unsigned int tccNum, unsigned int chNum,
     paramSet.opt |= (1 << EDMA3CC_OPT_TCINTEN_SHIFT);
 
     /* Now write the PaRAM Set */
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, chNum, &paramSet);
+    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, chNum, (EDMA3CCPaRAMEntry*) &paramSet);
 
     /* Enable EDMA Transfer */
     EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, chNum, EDMA3_TRIG_MODE_EVENT);
@@ -227,7 +227,7 @@ static void UartTransmitData(unsigned int tccNum, unsigned int chNum,
 static void UartReceiveData(unsigned int tccNum, unsigned int chNum,
                             volatile char *buffer)
 {
-    EDMA3CCPaRAMEntry paramSet;
+    volatile EDMA3CCPaRAMEntry paramSet;
 
     /* Fill the PaRAM Set with transfer specific information */
     paramSet.srcAddr = UART_RBR_THR_REG;
@@ -252,7 +252,7 @@ static void UartReceiveData(unsigned int tccNum, unsigned int chNum,
     paramSet.opt |= (1 << EDMA3CC_OPT_TCINTEN_SHIFT);
 
     /* Now write the PaRAM Set */
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, chNum, &paramSet);
+    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, chNum, (EDMA3CCPaRAMEntry*)&paramSet);
 
     /* Enable EDMA Transfer */
     EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, chNum, EDMA3_TRIG_MODE_EVENT);
