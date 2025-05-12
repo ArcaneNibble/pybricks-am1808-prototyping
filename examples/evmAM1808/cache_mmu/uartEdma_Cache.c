@@ -103,16 +103,12 @@ volatile unsigned int flag = 0;
 /*                   LOCAL FUNCTION DEFINITIONS                             */
 /****************************************************************************/
 
-/*
-** Main function.
-*/
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 
-int main(void)
-{
+static void config_mmu(void) {
 
     unsigned int index;
-    char i = 'a';
-
     /* Sets up 'Level 1" page table entries. 
      * The page table entry consists of the base address of the page
      * and the attributes for the page. The following operation is to
@@ -143,18 +139,31 @@ int main(void)
 
     /* Enables MMU */
     CP15MMUEnable();
-   
-    /* populate the buffer which is used by DMA for data transfer */
-    for(index = 0; index < TX_BUFFER_SIZE ; index++)
-    {
-         buffer[index] = i++;
-    }
  
     /* Enable Instruction Cache */
     CP15ICacheEnable();
 
     /* Enable Data Cache */
     CP15DCacheEnable();
+}
+#pragma GCC pop_options
+
+/*
+** Main function.
+*/
+int main(void)
+{
+    /* Enable MMU and Cache in a non-optimized function */
+    config_mmu();
+
+    unsigned int index;
+    char i = 'a';
+
+    /* populate the buffer which is used by DMA for data transfer */
+    for(index = 0; index < TX_BUFFER_SIZE ; index++)
+    {
+         buffer[index] = i++;
+    }
 
     /* Initialize EDMA3 Controller */
     EDMA3Initialize();
@@ -209,6 +218,7 @@ int main(void)
     }
 
     /* Clean cache to achive coherence between cached memory and main memory */
+    #define CACHE_FLUSH
     #ifdef CACHE_FLUSH
     CP15DCacheCleanBuff((unsigned int)buffer, 27);
     #endif
@@ -245,7 +255,7 @@ int main(void)
 static void UartTransmitData(unsigned int tccNum, unsigned int chNum,
                              volatile char *buffer, unsigned int buffLength)
 {
-    EDMA3CCPaRAMEntry paramSet;
+    volatile EDMA3CCPaRAMEntry paramSet;
 
     /* Fill the PaRAM Set with transfer specific information */
     paramSet.srcAddr = (unsigned int) buffer;
@@ -271,7 +281,7 @@ static void UartTransmitData(unsigned int tccNum, unsigned int chNum,
     paramSet.opt |= (1 << EDMA3CC_OPT_TCINTEN_SHIFT);
 
     /* Now write the PaRAM Set */
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, chNum, &paramSet);
+    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, chNum, (EDMA3CCPaRAMEntry*)&paramSet);
 
     /* Enable EDMA Transfer */
     EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, chNum, EDMA3_TRIG_MODE_EVENT);
