@@ -112,10 +112,11 @@ EVM_PLATFORM_SRC_C = $(addprefix ,\
 	platform/evmAM1808/uart.c \
 	platform/evmAM1808/uartConsole.c \
 	platform/evmAM1808/edma.c \
+	platform/evmAM1808/spi.c \
 	)
 
 TI_AM1808_PRJ_C = $(addprefix ,\
-	examples/evmAM1808/uart/uartEcho.c \
+	examples/evmAM1808/uart_edma/uartEcho.c \
     )
 
 OBJ = $(addprefix $(BUILD)/, $(TI_AM1808_SRC_C:.c=.o))
@@ -154,6 +155,7 @@ $(BUILD)/firmware-base.bin: $(BUILD)/firmware.elf
 	$(ECHO) "BIN creating firmware base file"
 	$(Q)$(OBJCOPY) -O binary $(FW_SECTIONS) $^ $@
 	$(ECHO) "`wc -c < $@` bytes"
+	$(Q)dd if=/dev/zero bs=1 count=1 seek=$$((128 * 1024 - 1)) of=$@ conv=notrunc
 
 FW_VERSION = 1.0.0
 
