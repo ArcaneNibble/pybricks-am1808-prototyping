@@ -32,7 +32,6 @@ INC += -I$(BUILD)
 GIT = git
 ZIP = zip
 PYBRICKSDEV = pybricksdev
-METADATA = $(PBTOP)/tools/metadata.py
 CFLAGS_MCU = -mcpu=arm926ej-s -Dgcc -Dam1808 # -c -g -fdata-sections -ffunction-sections -Wall -Dgcc -Dam1808 -O0
 
 CFLAGS_WARN = -Wall -Werror -Wextra -Wno-unused-parameter -Wno-maybe-uninitialized -Wno-error=sign-compare -Wno-error=implicit-fallthrough= -Wno-error=empty-body
@@ -159,14 +158,10 @@ $(BUILD)/firmware-base.bin: $(BUILD)/firmware.elf
 
 FW_VERSION = 1.0.0
 
-$(BUILD)/firmware.metadata.json: $(BUILD)/firmware.elf $(METADATA)
-	$(ECHO) "META creating firmware metadata"
-	$(Q)$(METADATA) $(FW_VERSION) ev3 $<.map $@
-
 # firmware.zip file
 ZIP_FILES := \
 	$(BUILD)/firmware-base.bin \
-	$(BUILD)/firmware.metadata.json \
+	$(TOP)/firmware.metadata.json \
 	ReadMe_OSS.txt \
 
 $(BUILD)/firmware.zip: $(ZIP_FILES)
