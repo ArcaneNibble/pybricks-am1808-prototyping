@@ -69,13 +69,3 @@ TI_AM1808_PRJ_C = $(addprefix ,\
 	examples/evmAM1808/uart/uartEcho.c \
     )
 ```
-
-# Help wanted
-
-If you manage to run either of the following examples, please open an issue
-to let us know!
-
-```
-examples/evmAM1808/uart_edma/uartEcho.c
-examples/evmAM1808/cache_mmu/uartEdma_Cache.c
-```
