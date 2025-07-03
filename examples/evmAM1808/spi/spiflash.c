@@ -475,7 +475,7 @@ static void IsFlashBusy(void)
     do{
          StatusGet();
         //  UARTPuts("status = ", -1);
-         puthex(rx_data[1]);
+        //  puthex(rx_data[1]);
         //  UARTPuts("\r\n", -1);
 
       }while(rx_data[1] & WRITE_IN_PROGRESS);
@@ -721,7 +721,7 @@ void SPIIsr(void)
     {
         if(intCode == SPI_TX_BUF_EMPTY)
         {
-            UARTPutc('t');
+            // UARTPutc('t');
             len--;
             if (!len)
                 HWREG(SOC_SPI_0_REGS + SPI_SPIDAT1) = *p_tx;
@@ -737,7 +737,7 @@ void SPIIsr(void)
 
         if(intCode == SPI_RECV_FULL)
         {
-            UARTPutc('r');
+            // UARTPutc('r');
             len2--;
             *p_rx = (char)SPIDataReceive(SOC_SPI_0_REGS);
             p_rx++;
