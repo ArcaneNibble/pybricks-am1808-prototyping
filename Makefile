@@ -115,7 +115,7 @@ EVM_PLATFORM_SRC_C = $(addprefix ,\
 	)
 
 TI_AM1808_PRJ_C = $(addprefix ,\
-	examples/evmAM1808/uart_edma/uartEcho.c \
+	examples/evmAM1808/spi/spiflash.c \
     )
 
 OBJ = $(addprefix $(BUILD)/, $(TI_AM1808_SRC_C:.c=.o))

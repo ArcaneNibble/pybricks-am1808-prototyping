@@ -113,8 +113,8 @@ int main(void)
 {
     unsigned char choice = 0;
 
-    /* Waking up the SPI1 instance. */
-    PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_SPI1, PSC_POWERDOMAIN_ALWAYS_ON,
+    /* Waking up the SPI0 instance. */
+    PSCModuleControl(SOC_PSC_0_REGS, HW_PSC_SPI0, PSC_POWERDOMAIN_ALWAYS_ON,
                      PSC_MDCTL_NEXT_ENABLE);
 
     /* Initializing the UART instance for serial communication. */
@@ -123,19 +123,19 @@ int main(void)
     UARTPuts("StarterWare AM1808 SPI application.\r\n\r\n", -1);
     UARTPuts("Here the SPI controller on the SoC communicates with", -1);
     UARTPuts(" the SPI Flash present on the SoM.\r\n\r\n", -1);
-    /* Performing the Pin Multiplexing for SPI1. */
-    SPIPinMuxSetup(1);
+    /* Performing the Pin Multiplexing for SPI0. */
+    SPIPinMuxSetup(0);
 
     /* 
-    ** Using the Chip Select(CS) 0 pin of SPI1 to communicate with SPI Flash.
+    ** Using the Chip Select(CS) 0 pin of SPI0 to communicate with SPI Flash.
     ** AM1808 EVM mandates us to do so.
     */
-    SPI1CSPinMuxSetup(0);
+    SPI0CSPinMuxSetup(0);
 
-    /* Enable use of SPI1 interrupts. */
+    /* Enable use of SPI0 interrupts. */
     SetUpInt();
 
-    /* Configuring and enabling the SPI1 instance. */
+    /* Configuring and enabling the SPI0 instance. */
     SetUpSPI();
 
     /* Preparing the Flash for a Write. */
@@ -174,7 +174,7 @@ static void StatusGet(void)
 {
     tx_data[0] = SPI_FLASH_STATUS_RX;
     len = 2;
-    SPIDat1Config(SOC_SPI_1_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
+    SPIDat1Config(SOC_SPI_0_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
     SpiTransfer();
 }
 
@@ -186,7 +186,7 @@ static void WriteEnable(void)
 {
     tx_data[0] = SPI_FLASH_WRITE_EN;
     len = 1;
-    SPIDat1Config(SOC_SPI_1_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
+    SPIDat1Config(SOC_SPI_0_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
     SpiTransfer();
 } 
 
@@ -214,7 +214,7 @@ static void SectorErase(void)
     tx_data[3] =  SPI_FLASH_ADDR_LSB;
 
     len = 4;
-    SPIDat1Config(SOC_SPI_1_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
+    SPIDat1Config(SOC_SPI_0_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
     SpiTransfer(); 
     
     IsFlashBusy();
@@ -245,7 +245,7 @@ static void WritetoFlash(void)
     }
 
     len = index;
-    SPIDat1Config(SOC_SPI_1_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
+    SPIDat1Config(SOC_SPI_0_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
     SpiTransfer();
 
     IsFlashBusy();
@@ -271,7 +271,7 @@ static void ReadFromFlash(void)
     }
 
     len = index;
-    SPIDat1Config(SOC_SPI_1_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
+    SPIDat1Config(SOC_SPI_0_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0x1);
     SpiTransfer();
 }
 
@@ -315,15 +315,15 @@ static void SetUpInt(void)
     IntAINTCInit();
 
    /* Register the ISR in the Interrupt Vector Table.*/
-    IntRegister(SYS_INT_SPINT1, SPIIsr);
+    IntRegister(SYS_INT_SPINT0, SPIIsr);
 
     /* Set the channnel number 2 of AINTC for system interrupt 56.
      * Channel 2 is mapped to IRQ interrupt of ARM9.
      */
-    IntChannelSet(SYS_INT_SPINT1, 2);
+    IntChannelSet(SYS_INT_SPINT0, 2);
 
     /* Enable the System Interrupts for AINTC.*/
-    IntSystemEnable(SYS_INT_SPINT1);
+    IntSystemEnable(SYS_INT_SPINT0);
 
     /* Enable IRQ in CPSR.*/
     IntMasterIRQEnable();
@@ -345,17 +345,17 @@ static void SetUpSPI(void)
     unsigned char dcs = 0x01;
     unsigned int  val = SIMO_SOMI_CLK_CS;
     
-    SPIReset(SOC_SPI_1_REGS);
+    SPIReset(SOC_SPI_0_REGS);
 
-    SPIOutOfReset(SOC_SPI_1_REGS);
+    SPIOutOfReset(SOC_SPI_0_REGS);
 
-    SPIModeConfigure(SOC_SPI_1_REGS, SPI_MASTER_MODE);
+    SPIModeConfigure(SOC_SPI_0_REGS, SPI_MASTER_MODE);
 
-    SPIClkConfigure(SOC_SPI_1_REGS, 150000000, 20000000, SPI_DATA_FORMAT0);
+    SPIClkConfigure(SOC_SPI_0_REGS, 150000000, 20000000, SPI_DATA_FORMAT0);
 
-    SPIPinControl(SOC_SPI_1_REGS, 0, 0, &val);
+    SPIPinControl(SOC_SPI_0_REGS, 0, 0, &val);
 
-    SPIDefaultCSSet(SOC_SPI_1_REGS, dcs);
+    SPIDefaultCSSet(SOC_SPI_0_REGS, dcs);
 
     /* Configures SPI Data Format Register */
     SPIConfigDataFmtReg(SPI_DATA_FORMAT0);
@@ -363,13 +363,13 @@ static void SetUpSPI(void)
      /* Selects the SPI Data format register to used and Sets CSHOLD 
       * to assert CS pin(line)  
       */
-    SPIDat1Config(SOC_SPI_1_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), cs);
+    SPIDat1Config(SOC_SPI_0_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), cs);
 
      /* map interrupts to interrupt line INT1 */
-    SPIIntLevelSet(SOC_SPI_1_REGS, SPI_RECV_INTLVL | SPI_TRANSMIT_INTLVL);
+    SPIIntLevelSet(SOC_SPI_0_REGS, SPI_RECV_INTLVL | SPI_TRANSMIT_INTLVL);
     
     /* Enable SPI communication */
-    SPIEnable(SOC_SPI_1_REGS);
+    SPIEnable(SOC_SPI_0_REGS);
 }
 /*
 ** Configures Data Format register of SPI
@@ -378,15 +378,15 @@ static void SetUpSPI(void)
 static void SPIConfigDataFmtReg(unsigned long dataFormat)
 {
     /* Configures the polarity and phase of SPI clock */
-    SPIConfigClkFormat(SOC_SPI_1_REGS,
+    SPIConfigClkFormat(SOC_SPI_0_REGS,
                        (SPI_CLK_POL_HIGH | SPI_CLK_INPHASE),
                        dataFormat);
 
     /* Configures SPI to transmit MSB bit First during data transfer */
-    SPIShiftMsbFirst(SOC_SPI_1_REGS, dataFormat);
+    SPIShiftMsbFirst(SOC_SPI_0_REGS, dataFormat);
 
     /* Sets the Charcter length */
-    SPICharLengthSet(SOC_SPI_1_REGS, CHAR_LENGTH, dataFormat);
+    SPICharLengthSet(SOC_SPI_0_REGS, CHAR_LENGTH, dataFormat);
 }
 
 /*
@@ -397,11 +397,11 @@ static void  SpiTransfer(void)
 {
     p_tx = &tx_data[0];
     p_rx = &rx_data[0];
-    SPIIntEnable(SOC_SPI_1_REGS, (SPI_RECV_INT | SPI_TRANSMIT_INT));
+    SPIIntEnable(SOC_SPI_0_REGS, (SPI_RECV_INT | SPI_TRANSMIT_INT));
     while(flag);
     flag = 1;
     /* Deasserts the CS pin(line) */
-    SPIDat1Config(SOC_SPI_1_REGS, SPI_DATA_FORMAT0, 0x1);
+    SPIDat1Config(SOC_SPI_0_REGS, SPI_DATA_FORMAT0, 0x1);
 }
 
 /*
@@ -412,35 +412,35 @@ void SPIIsr(void)
 {
     unsigned long intCode = 0;
 
-    IntSystemStatusClear(56);
+    IntSystemStatusClear(SYS_INT_SPINT0);
 
-    intCode = SPIInterruptVectorGet(SOC_SPI_1_REGS);
+    intCode = SPIInterruptVectorGet(SOC_SPI_0_REGS);
 
     while (intCode)
     {
         if(intCode == SPI_TX_BUF_EMPTY)
         {
             len--;
-            SPITransmitData1(SOC_SPI_1_REGS, *p_tx);
+            SPITransmitData1(SOC_SPI_0_REGS, *p_tx);
             p_tx++;
             if (!len)
             {
-                SPIIntDisable(SOC_SPI_1_REGS, SPI_TRANSMIT_INT);
+                SPIIntDisable(SOC_SPI_0_REGS, SPI_TRANSMIT_INT);
             }
         }
 
         if(intCode == SPI_RECV_FULL)
         {
-            *p_rx = (char)SPIDataReceive(SOC_SPI_1_REGS);
+            *p_rx = (char)SPIDataReceive(SOC_SPI_0_REGS);
             p_rx++;
             if (!len)
             {
                 flag = 0;
-                SPIIntDisable(SOC_SPI_1_REGS, SPI_RECV_INT);
+                SPIIntDisable(SOC_SPI_0_REGS, SPI_RECV_INT);
             }
         }
 
-        intCode = SPIInterruptVectorGet(SOC_SPI_1_REGS);
+        intCode = SPIInterruptVectorGet(SOC_SPI_0_REGS);
     }
 }
 
