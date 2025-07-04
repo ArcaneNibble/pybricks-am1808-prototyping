@@ -112,10 +112,11 @@ EVM_PLATFORM_SRC_C = $(addprefix ,\
 	platform/evmAM1808/uartConsole.c \
 	platform/evmAM1808/edma.c \
 	platform/evmAM1808/spi.c \
+	platform/evmAM1808/i2c.c \
 	)
 
 TI_AM1808_PRJ_C = $(addprefix ,\
-	examples/evmAM1808/spi/spiflash.c \
+	examples/evmAM1808/i2c/dumpbootrom.c \
     )
 
 OBJ = $(addprefix $(BUILD)/, $(TI_AM1808_SRC_C:.c=.o))
