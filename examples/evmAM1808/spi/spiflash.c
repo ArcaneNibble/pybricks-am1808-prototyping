@@ -46,6 +46,8 @@
 #include "hw_pllc_AM1808.h"
 #include "evmAM1808.h"
 #include "uart.h"
+#include "edma.h"
+#include "edma_event.h"
 #include "gpio.h"
 #include "spi.h"
 #include "psc.h"
@@ -109,6 +111,8 @@ char tx_data[260];
 char rx_data[260];
 char *p_tx;
 char *p_rx;
+
+const uint8_t mustbezero;
 
 static const char *hexlut = "0123456789abcdef";
 static void puthex(unsigned char c) {
@@ -177,6 +181,16 @@ int main(void)
     HWREG(SOC_SYSCFG_0_REGS + SYSCFG0_PINMUX(3)) = (x & 0xF0FFFFFF) | (4 << 24);
     GPIODirModeSet(SOC_GPIO_0_REGS, 131, GPIO_DIR_OUTPUT);
     GPIOPinWrite(SOC_GPIO_0_REGS, 131, GPIO_PIN_HIGH);
+
+    // enable edma
+    /* Enabling the PSC for EDMA3CC_0).*/ 
+    PSCModuleControl(SOC_PSC_0_REGS, HW_PSC_CC0, PSC_POWERDOMAIN_ALWAYS_ON,
+		     PSC_MDCTL_NEXT_ENABLE);
+    /* Enabling the PSC for EDMA3TC_0.*/
+    PSCModuleControl(SOC_PSC_0_REGS, HW_PSC_TC0, PSC_POWERDOMAIN_ALWAYS_ON,
+		     PSC_MDCTL_NEXT_ENABLE);
+    /* Initialization of EDMA3 */    
+    EDMA3Init(SOC_EDMA30CC_0_REGS, 0);
     
     // LEDs
     GPIODirModeSet(SOC_GPIO_0_REGS, 109, GPIO_DIR_OUTPUT);
@@ -372,6 +386,45 @@ int main(void)
 
     /* Configuring and enabling the SPI0 instance. */
     SetUpSPI();
+
+    /* Request DMA Channel and TCC for SPI Transmit*/
+    EDMA3RequestChannel(SOC_EDMA30CC_0_REGS, EDMA3_CHANNEL_TYPE_DMA, \
+                        EDMA3_CHA_SPI0_TX, EDMA3_CHA_SPI0_TX, 0);
+
+    // // wtf edma test
+    // EDMA3CCPaRAMEntry paramSet;
+    // paramSet.srcAddr = 0xc1080000;
+    // paramSet.destAddr = (unsigned int)rx_data;
+    // paramSet.aCnt = 1;
+    // paramSet.bCnt = 256;
+    // paramSet.cCnt = 1;
+    // paramSet.srcBIdx = 1;
+    // paramSet.destBIdx = 1;
+    // paramSet.srcCIdx = 0;
+    // paramSet.destCIdx = 0;
+    // paramSet.linkAddr = 0xffff;
+    // paramSet.bCntReload = 0;
+    // paramSet.opt = EDMA3CC_OPT_TCINTEN | (EDMA3_CHA_SPI0_TX << EDMA3CC_OPT_TCC_SHIFT);
+    // // EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_SPI0_TX, &paramSet);
+    // for (int x = 0; x < 30; x++)
+    //     *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + x) = *((unsigned char *)&paramSet + x);
+    // *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 30) = 0;
+    // *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 31) = 0;
+
+    // EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, EDMA3_CHA_SPI0_TX, EDMA3_TRIG_MODE_MANUAL);
+    // for (int i = 0; i < 256; i++)
+    //     EDMA3SetEvt(SOC_EDMA30CC_0_REGS, EDMA3_CHA_SPI0_TX);
+
+    // for (int i = 0; i < 100; i++) __asm__ volatile("");
+
+    // for (int i = 0; i < 256; i++) {
+    //     puthex(rx_data[i]);
+    //     UARTPutc(' ');
+    //     if (i % 16 == 15)
+    //         UARTPuts("\r\n", -1);
+    // }
+
+    // while (1) {}
 
     // HWREG(SOC_SPI_0_REGS + SPI_SPIGCR1) |= (1 << 16);
     HWREG(SOC_SPI_0_REGS + SPI_SPIFLG) = SPI_SPIFLG_RXINTFLG;
@@ -604,6 +657,107 @@ static void VerifyData(void)
 
 }
 
+
+/*
+** EDMA3 Error Interrupt Service Routine(ISR).
+*/
+
+static void Edma3CCErrHandlerIsr(void)
+{
+    volatile unsigned int pendingIrqs = 0;
+    unsigned int Cnt = 0;
+    unsigned int index = 1;
+    unsigned int regionNum = 0;  
+    unsigned int evtqueNum = 0;
+
+    IntSystemStatusClear(SYS_INT_CCERRINT);
+
+    UARTPutc('?');
+
+    if((HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_EMR) != 0 )
+        || (HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_QEMR) != 0)
+        || (HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_CCERR) != 0))
+    {
+        /* Loop for EDMA3CC_ERR_HANDLER_RETRY_COUNT number of time, breaks 
+           when no pending interrupt is found. */
+        while ((Cnt < EDMA3CC_ERR_HANDLER_RETRY_COUNT) && (index != 0))
+        {
+            index = 0;
+            pendingIrqs = HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_EMR);
+            while (pendingIrqs)
+            {
+                /*Process all the pending interrupts.*/
+                if((pendingIrqs & 1)==TRUE)
+                {
+                    /* Write to EMCR to clear the corresponding EMR bits.*/
+                    HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_EMCR) = (1<<index);
+                    /*Clear any SER*/
+                    HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_S_SECR(regionNum)) = (1<<index);
+                }
+                ++index;
+                pendingIrqs >>= 1;
+            }
+            index = 0;
+            pendingIrqs = HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_QEMR);
+            while (pendingIrqs)
+            {
+                /*Process all the pending interrupts.*/
+                if((pendingIrqs & 1)==TRUE)
+                {
+                    /* Here write to QEMCR to clear the corresponding QEMR bits.*/
+                    HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_QEMCR) = (1<<index);
+                    /*Clear any QSER*/
+                    HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_S_QSECR(0)) = (1<<index);
+                }
+                ++index;
+                pendingIrqs >>= 1;
+            }
+            index = 0;
+            pendingIrqs = HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_CCERR);
+            if(pendingIrqs != 0)
+            {
+                /* Process all the pending CC error interrupts. */
+                /* Queue threshold error for different event queues.*/
+                for (evtqueNum = 0; evtqueNum < EDMA3_0_NUM_EVTQUE; evtqueNum++)
+                {
+                    if((pendingIrqs & (1 << evtqueNum)) != 0)
+                    {
+                        /* Clear the error interrupt. */
+                        HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_CCERRCLR) = (1 << evtqueNum);
+                    }
+                }
+
+                /* Transfer completion code error. */
+                if ((pendingIrqs & (1 << EDMA3CC_CCERR_TCCERR_SHIFT)) != 0)
+                {
+                    HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_CCERRCLR) = \
+                         (0x01 << EDMA3CC_CCERR_TCCERR_SHIFT);
+                }
+                ++index;
+            }
+            Cnt++;
+        }
+    }
+}
+
+static void Edma3ComplHandlerIsr(void)
+{
+    IntSystemStatusClear(SYS_INT_CCINT0);
+    uint32_t ipr;
+    do {
+        ipr = EDMA3GetIntrStatus(SOC_EDMA30CC_0_REGS);
+        UARTPutc('e');
+        puthex32(ipr);
+        for (int i = 0; i < 32; i++) {
+            if (ipr & (1 << i)) {
+                UARTPutc('E');
+                puthex(i);
+            }
+        }
+        HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_ICR) = ipr;
+    } while (ipr);
+}
+
 /*
 ** Configures ARM interrupt controller to generate SPI interrupt
 **
@@ -623,6 +777,14 @@ static void SetUpInt(void)
 
     /* Enable the System Interrupts for AINTC.*/
     IntSystemEnable(SYS_INT_SPINT0);
+
+    IntRegister(SYS_INT_CCINT0, Edma3ComplHandlerIsr);
+    IntChannelSet(SYS_INT_CCINT0, 2);
+    IntSystemEnable(SYS_INT_CCINT0);
+
+    IntRegister(SYS_INT_CCERRINT, Edma3CCErrHandlerIsr);
+    IntChannelSet(SYS_INT_CCERRINT, 2);
+    IntSystemEnable(SYS_INT_CCERRINT);
 
     /* Enable IRQ in CPSR.*/
     IntMasterIRQEnable();
@@ -696,9 +858,109 @@ static void  SpiTransfer(void)
 {
     p_tx = &tx_data[0];
     p_rx = &rx_data[0];
-    *(volatile unsigned char *)(SOC_SPI_0_REGS + SPI_SPIDAT1 + 3) = 0x10;
+
+    EDMA3CCPaRAMEntry paramSet;
+    if (len > 1) {
+        *(volatile unsigned char *)(SOC_SPI_0_REGS + SPI_SPIDAT1 + 3) = 0x10;
+        paramSet.srcAddr = (unsigned int)tx_data;
+        paramSet.destAddr = SOC_SPI_0_REGS + SPI_SPIDAT1;
+        paramSet.aCnt = 1;
+        paramSet.bCnt = len - 1;
+        paramSet.cCnt = 1;
+        paramSet.srcBIdx = 1;
+        paramSet.destBIdx = 0;
+        paramSet.srcCIdx = 0;
+        paramSet.destCIdx = 0;
+        paramSet.linkAddr = 0xffff;
+        paramSet.linkAddr = 126 * 32;
+        paramSet.bCntReload = 0;
+        paramSet.opt = EDMA3CC_OPT_TCINTEN | (EDMA3_CHA_SPI0_TX << EDMA3CC_OPT_TCC_SHIFT);
+        // EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_SPI0_TX, &paramSet);
+        for (int x = 0; x < 30; x++)
+            *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + x) = *((unsigned char *)&paramSet + x);
+        *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 30) = 0;
+        *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 31) = 0;
+
+        paramSet.srcAddr = (unsigned int)&mustbezero;
+        paramSet.destAddr = SOC_SPI_0_REGS + SPI_SPIDAT1 + 3;
+        paramSet.bCnt = 1;
+        paramSet.linkAddr = 127 * 32;
+        // EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, 126, &paramSet);
+        for (int x = 0; x < 30; x++)
+            *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + 126*32 + x) = *((unsigned char *)&paramSet + x);
+        *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + 126*32 + 30) = 0;
+        *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + 126*32 + 31) = 0;
+
+        paramSet.srcAddr = (unsigned int)&tx_data[len - 1];
+        paramSet.destAddr = SOC_SPI_0_REGS + SPI_SPIDAT1;
+        paramSet.linkAddr = 0xffff;
+        // EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, 127, &paramSet);
+        for (int x = 0; x < 30; x++)
+            *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + 127*32 + x) = *((unsigned char *)&paramSet + x);
+        *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + 127*32 + 30) = 0;
+        *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + 127*32 + 31) = 0;
+    } else {
+        *(volatile unsigned char *)(SOC_SPI_0_REGS + SPI_SPIDAT1 + 3) = 0;
+        paramSet.srcAddr = (unsigned int)tx_data;
+        paramSet.destAddr = SOC_SPI_0_REGS + SPI_SPIDAT1;
+        paramSet.aCnt = 1;
+        paramSet.bCnt = len;
+        paramSet.cCnt = 1;
+        paramSet.srcBIdx = 1;
+        paramSet.destBIdx = 0;
+        paramSet.srcCIdx = 0;
+        paramSet.destCIdx = 0;
+        paramSet.linkAddr = 0xffff;
+        paramSet.bCntReload = 0;
+        paramSet.opt = EDMA3CC_OPT_TCINTEN | (EDMA3_CHA_SPI0_TX << EDMA3CC_OPT_TCC_SHIFT);
+        // EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_SPI0_TX, &paramSet);
+        for (int x = 0; x < 30; x++)
+            *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + x) = *((unsigned char *)&paramSet + x);
+        *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 30) = 0;
+        *(volatile unsigned char *)(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 31) = 0;
+    }
+
+    UARTPuts("xxx setup params\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 0x00));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 0x04));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 0x08));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 0x0c));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 0x10));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 0x14));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 0x18));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_PaRAM_BASE + EDMA3_CHA_SPI0_TX*32 + 0x1c));
+    UARTPuts("\r\n", -1);
+    UARTPuts("\r\n", -1);
+
     __asm__ volatile("":::"memory");
-    SPIIntEnable(SOC_SPI_0_REGS, (SPI_RECV_INT | SPI_TRANSMIT_INT));
+    
+    EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, EDMA3_CHA_SPI0_TX, EDMA3_TRIG_MODE_EVENT);
+    SPIIntEnable(SOC_SPI_0_REGS, (SPI_RECV_INT | SPI_DMA_REQUEST_ENA_INT));
+
+    // EDMA3SetEvt(SOC_EDMA30CC_0_REGS, EDMA3_CHA_SPI0_TX);
+
+    for (int i = 0; i < 1000; i++) __asm__ volatile("");
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_ER));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_EER));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_IER));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_IPR));
+    UARTPuts("\r\n", -1);
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_SPI_0_REGS + SPI_SPIINT0));
+    UARTPuts("\r\n", -1);
+    puthex32(HWREG(SOC_SPI_0_REGS + SPI_SPIFLG));
+    UARTPuts("\r\n", -1);
+
     while(flag);
     flag = 1;
     // /* Deasserts the CS pin(line) */
@@ -721,23 +983,22 @@ void SPIIsr(void)
     {
         if(intCode == SPI_TX_BUF_EMPTY)
         {
-            // UARTPutc('t');
-            len--;
-            if (!len)
-                HWREG(SOC_SPI_0_REGS + SPI_SPIDAT1) = *p_tx;
-            else
-                *(volatile unsigned char *)(SOC_SPI_0_REGS + SPI_SPIDAT1) = *p_tx;
-            // SPITransmitData1(SOC_SPI_0_REGS, *p_tx);
-            p_tx++;
-            if (!len)
-            {
-                SPIIntDisable(SOC_SPI_0_REGS, SPI_TRANSMIT_INT);
-            }
+            UARTPutc('t');
+            // len--;
+            // if (!len)
+            //     *(volatile unsigned char *)(SOC_SPI_0_REGS + SPI_SPIDAT1 + 3) = 0;
+            // *(volatile unsigned char *)(SOC_SPI_0_REGS + SPI_SPIDAT1) = *p_tx;
+            // // SPITransmitData1(SOC_SPI_0_REGS, *p_tx);
+            // p_tx++;
+            // if (!len)
+            // {
+            //     SPIIntDisable(SOC_SPI_0_REGS, SPI_TRANSMIT_INT);
+            // }
         }
 
         if(intCode == SPI_RECV_FULL)
         {
-            // UARTPutc('r');
+            UARTPutc('r');
             len2--;
             *p_rx = (char)SPIDataReceive(SOC_SPI_0_REGS);
             p_rx++;
